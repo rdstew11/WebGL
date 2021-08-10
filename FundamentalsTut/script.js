@@ -117,7 +117,7 @@ function randomInt(range) {
   }
    
 
-  //fills buffer with rectangle
+//fills buffer with rectangle
 function setRectangle(gl, x, y, width, height){
     var x1 = x;
     var x2 = x + width;
