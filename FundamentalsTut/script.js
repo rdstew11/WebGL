@@ -98,7 +98,7 @@ function main(){
     //setting resolution
     gl.uniform2f(uniformLocations.resolution, gl.canvas.width, gl.canvas.height);
 
-    var numRectangles = 50;
+    var numRectangles = 10;
     for(var i = 0; i < numRectangles; ++i){
         //Creates a random rectangle
         setRectangle(gl, randomInt(300), randomInt(300), randomInt(300), randomInt(300));
@@ -117,6 +117,7 @@ function randomInt(range) {
   }
    
 
+  //fills buffer with rectangle
 function setRectangle(gl, x, y, width, height){
     var x1 = x;
     var x2 = x + width;
