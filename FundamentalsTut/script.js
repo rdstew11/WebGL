@@ -84,14 +84,14 @@ function main(){
     //bind VBO so webGL can use it
     gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
 
-    /**
+   
     //Tells the attribute how to get data out of buffer
     var size = 2;           // 2 components per iteration
     var type = gl.FLOAT;    // data is 32bit floats
     var normalize = false;  // don't normalize data
     var stride = 0;          // # of (size * sizeof(type)) to jump each iteration
     var offset = 0;         // where in buffer to begin
-    */
+   
 
     gl.vertexAttribPointer(attribLocations.position, size, type, normalize, stride, offset);
 
@@ -101,11 +101,13 @@ function main(){
     var numRectangles = 50;
     for(var i = 0; i < numRectangles; ++i){
         //Creates a random rectangle
-        setRectangle(gl, randomInt(300), randomInt(300), randomInt(300), randomInt(300))
-        gl.uniform4f(uniformLocations.color, )
+        setRectangle(gl, randomInt(300), randomInt(300), randomInt(300), randomInt(300));
+        //Assigns random color
+        gl.uniform4f(uniformLocations.color, Math.random(), Math.random(), Math.random(), 1);
+        //draw rectangle
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
 
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
 
 }
 
