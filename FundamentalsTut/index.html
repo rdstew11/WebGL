@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Fundamentals</title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/gl-matrix/2.8.1/gl-matrix-min.js"
+            integrity="sha512-zhHQR0/H5SEBL3Wn6yYSaTTZej12z0hVZKOv3TwCUXT1z5qeqGcXJLLrbERYRScEDDpYIJhPC1fk31gqR783iQ=="
+            crossorigin="anonymous" defer>
+        </script>
+        <script src='script.js' defer></script>
+    </head>
+
+    <body>
+        <canvas id='glcanvas' width='720' height='640'></canvas>
+
+    </body>
+
+</html>
+
+
+<script id="vert_shader" type='notjs'>
+    attribute vec4 a_position;
+
+    uniform vec2 u_resolution;
+
+    void main(){
+        // convert the position from pixels to 0.0 to 1.0
+        vec2 zeroToOne = a_position.xy / u_resolution;
+   
+        // convert from 0->1 to 0->2
+        vec2 zeroToTwo = zeroToOne * 2.0;
+   
+        // convert from 0->2 to -1->+1 (clipspace)
+        vec2 clipSpace = zeroToTwo - 1.0;
+   
+        gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
+    }
+</script>
+
+<script id="frag_shader" type='notjs'>
+    precision mediump float;
+
+    void main(){
+        gl_FragColor = vec4(1, 0, 0, 1);
+    }
+</script>
