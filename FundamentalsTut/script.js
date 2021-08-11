@@ -122,8 +122,6 @@ function main(){
   
       // Compute the matrix
       var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
-      var zNear = 1;
-      var zFar = 2000;
       var projectionMatrix = m4.perspective(fieldOfView, aspect, zNear, zFar);
   
       // Drawing 5 f's
