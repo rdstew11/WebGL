@@ -1,0 +1,10 @@
+
+.webgl {
+    display: block;
+    height: 720px;
+    width: 1080px;
+}
+
+html, body {
+    margin: 0;
+}

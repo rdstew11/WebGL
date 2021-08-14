@@ -22,17 +22,76 @@ function main(){
 
     var attribLocations = {
       position: gl.getAttribLocation(shaderProgram, "a_position"),
-      color: gl.getAttribLocation(shaderProgram, "a_color"),
+      //color: gl.getAttribLocation(shaderProgram, "a_color"),
+      normal: gl.getAttribLocation(shaderProgram, "a_normal"),
     }
     
     var uniformLocations = {
-        matrix: gl.getUniformLocation(shaderProgram, "u_matrix"),
+      worldViewProjection: gl.getUniformLocation(shaderProgram, "u_worldViewProjection"),
+      color: gl.getUniformLocation(shaderProgram, "u_color"),
+      reverseLightDirection: gl.getUniformLocation(shaderProgram, "u_reverseLightDirection"),
+      worldInverseTranspose: gl.getUniformLocation(shaderProgram, "u_worldInverseTranspose"),
+
     }
+
+
+
+
+    //Filling positions array
+    var nRows = 4;
+    var nCols = 4;
+    var depth = 4;
+    var spacing = 100;
+    var cubeSize = 50;
+    var cX = -(nRows - 1) * spacing / 2;
+    var cY = 0;
+    var cZ = (depth - 1) * spacing / 2;
+    var posArrays = [];
+    var normArray = [];
+    for(var i = 0; i < nRows; i++){
+      cY = 0;
+      for(var j = 0; j < nCols; j++){
+        cZ = (depth - 1) * spacing / 2;
+        for(var k = 0; k < depth; k++){
+          posArrays = posArrays.concat(setCuboidPostions(cX, cY, cZ, cubeSize, cubeSize, cubeSize));
+          normArray = normArray.concat(setCuboidNormals());
+          cZ -= spacing;
+          console.log(cX + "," + cY + "," + cZ);
+        }
+        cY += spacing;
+      }
+      cX += spacing;
+    }
+    // create position buffer and fill it
+    var positionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(posArrays), gl.STATIC_DRAW);
+  
+
+
+    // create normal buffer and fill it
+    var normalBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normArray), gl.STATIC_DRAW);
+  
+
+    var originPosBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, originPosBuffer);
+    var originPosArray = setCuboidPostions(0, 0, 0, 30, 30, 30);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(originPosArray), gl.STATIC_DRAW);
+
+
+    var originNormalBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, originNormalBuffer);
+    var originNormalArray = setCuboidNormals();
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(originNormalArray), gl.STATIC_DRAW);
+  
+ 
     
     var fieldOfView = degToRad(60);     
     var cameraAngle = degToRad(100);
-    var rotationSpeed = 1.2;
-
+    var rotationSpeed = .3;
+    var fAngle = degToRad(60);
     var then = 0;
     
     
@@ -47,13 +106,16 @@ function main(){
       // Remember the current time for the next frame
       then = now;
 
-      cameraAngle += rotationSpeed * deltaTime;
+      fAngle += rotationSpeed * deltaTime;
   
+
+
       // Tells webgl how to convert from clip space to pixels
       resizeCanvasToDisplaySize(gl.canvas);
       gl.viewport(0,0, gl.canvas.width, gl.canvas.height);
-  
-  
+
+
+
       // Clearing background to a color
       var rVal = 41. / 255.;
       var gVal = 142. / 255.;
@@ -70,109 +132,96 @@ function main(){
       // Tells webGL which shader to use
       gl.useProgram(shaderProgram);
   
-      // create VBO and fill it
-      var vertexBuffer = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-      // filling VBO from function
-      setGeometry(gl, m4);
-  
+
+
       // Turns on attribute position vertex
       gl.enableVertexAttribArray(attribLocations.position);
-  
       // bind VBO so webGL can use it
-      gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-  
-          
+      gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);    
       // Tells the attribute how to get data out of buffer
       var size = 3;           // 3 components per iteration
       var type = gl.FLOAT;    // data is 32bit floats
       var normalize = false;  // don't normalize data
       var stride = 0;         // # of (size * sizeof(type)) to jump each iteration
       var offset = 0;         // where in buffer to begin
-      
-  
       gl.vertexAttribPointer(attribLocations.position, size, type, normalize, stride, offset);
   
-  
-      // Creating a color buffer
-      var colorBuffer = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
-      // filling color buffer from function
-      setColors(gl);
-  
-      // turing on Color attribute
-      gl.enableVertexAttribArray(attribLocations.color);
-      var size = 3;                   // 3 Components per iteration
-      var type = gl.UNSIGNED_BYTE;    // data is 8bit unsigned values
-      var normalize = true;           // normalize the data (convert from 0-255 to 0-1)
-      var stride = 0;                 
+      //enabling normal attrib
+      gl.enableVertexAttribArray(attribLocations.normal);
+      gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+      var size = 3;
+      var type = gl.FLOAT;
+      var normalize = false;
+      var stride = 0;
       var offset = 0;
-      gl.vertexAttribPointer(attribLocations.color, size, type, normalize, stride, offset);
-  
-  
-      // setting uniforms;
-      gl.uniform4f(uniformLocations.color, 1, 0, 0, 1);
-  
+      gl.vertexAttribPointer(attribLocations.normal, size, type, normalize, stride, offset);
+
+
   
       //perspective values
       var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
       var zNear = 1;
       var zFar = 2000;
-  
-  
       // Compute the matrix
-      var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
       var projectionMatrix = m4.perspective(fieldOfView, aspect, zNear, zFar);
+
   
-      // Drawing 5 f's
-      var numFs = 5;
-      var radius = 200;
-  
-      // Compute the position of the first f
-      var fPosition = [radius, 0, 0];
-  
-      // Matrix math to compute a position on the circle where the camera is
-      var cameraMatrix = m4.yRotation(cameraAngle);
-      cameraMatrix = m4.translate(cameraMatrix, 0, 0, radius * 1.5);
-  
+ 
   
       // Get camera's position out of matrix
-      var cameraPosition = [
-        cameraMatrix[12],     //x
-        cameraMatrix[13],     //y
-        cameraMatrix[14]      //z
-      ];
-  
+      var cameraPosition = [0, 500, -500];
+      var target = [0, 0, 0];  
       var up = [0, 1, 0];
-  
       //compute the camera's matrix using lookAt
-      cameraMatrix = m4.lookAt(cameraPosition, fPosition, up);
-  
-  
-  
+      cameraMatrix = m4.lookAt(cameraPosition, target, up);
+
       //View matrix is the matrix that moves everything the opposite of the camera
       var viewMatrix = m4.inverse(cameraMatrix);
   
       //Compute a view projection matrix
       var viewProjectionMatrix = m4.multiply(projectionMatrix, viewMatrix);
+
+      //Rotation linear transformation
+      var worldMatrix =  m4.yRotation(fAngle);
+
+      //Multipy the matrices
+      var worldViewProjectionMatrix = m4.multiply(viewProjectionMatrix, worldMatrix);
+      var worldInverseMatrix = m4.inverse(worldMatrix);
+      var worldInverseTransposeMatrix = m4.transpose(worldInverseMatrix);
+
+      // setting uniforms;
+      gl.uniformMatrix4fv(uniformLocations.worldViewProjection, false, worldViewProjectionMatrix);
+      gl.uniformMatrix4fv(uniformLocations.worldInverseTranspose, false, worldInverseTransposeMatrix);
+      gl.uniform4fv(uniformLocations.color, [0.2, 1, 0.2, 1]);
+      gl.uniform3fv(uniformLocations.reverseLightDirection, m4.normalize([0.5, 0.7, 1]));
+
+      var primitiveType = gl.TRIANGLES;
+      var drawOffset = 0;
+      var count =  (6 * 6) * nRows * nCols * depth;
   
-      for(var i = 0; i < numFs; i++){
-          var angle = i * Math.PI * 2 / numFs;
-          var x = Math.cos(angle) * radius;
-          var y = Math.sin(angle) * radius;
-  
-          //Compute a matrix for the individual F
-          var matrix = m4.translate(viewProjectionMatrix, x, 0, y);
-  
-          //Giving shader program the matrix
-          gl.uniformMatrix4fv(uniformLocations.matrix, false, matrix);
-  
-          var primitiveType = gl.TRIANGLES;
-          var drawOffset = 0;
-          var count = 16 * 6;
+
+      gl.drawArrays(primitiveType, drawOffset, count);
       
-          gl.drawArrays(primitiveType, drawOffset, count);
-      }
+      // bind VBO so webGL can use it
+      gl.bindBuffer(gl.ARRAY_BUFFER, originPosBuffer);    
+      // Tells the attribute how to get data out of buffer
+      var size = 3;           // 3 components per iteration
+      var type = gl.FLOAT;    // data is 32bit floats
+      var normalize = false;  // don't normalize data
+      var stride = 0;         // # of (size * sizeof(type)) to jump each iteration
+      var offset = 0;         // where in buffer to begin
+      gl.vertexAttribPointer(attribLocations.position, size, type, normalize, stride, offset);
+  
+      //enabling normal attrib
+      gl.bindBuffer(gl.ARRAY_BUFFER, originNormalBuffer);
+      var size = 3;
+      var type = gl.FLOAT;
+      var normalize = false;
+      var stride = 0;
+      var offset = 0;
+      gl.vertexAttribPointer(attribLocations.normal, size, type, normalize, stride, offset);
+
+      gl.drawArrays(gl.TRIANGLES, 0, 36);
   
       requestAnimationFrame(drawScene);
   }
@@ -188,6 +237,251 @@ function main(){
   
   function degToRad(d) {
       return d * Math.PI / 180;
+  }
+  
+
+  function setCuboidPostions(x, y, z, length, height, width){
+    // setting vertex positions
+    // Giving each side its own unique set of vertices makes giving normal vectors a lot easier
+    var positions = [
+      // front face
+      x - length / 2,   y - length / 2,   z + width / 2,          //0
+      x + length / 2,   y - length / 2,   z + width / 2,          //1
+      x + length / 2,   y + height / 2,   z + width / 2,          //2
+      x - length / 2,   y - length / 2,   z + width / 2,          //0
+      x + length / 2,   y + height / 2,   z + width / 2,          //2
+      x - length / 2,   y + height / 2,   z + width / 2,          //3
+
+      // right face
+      x + length / 2,   y - length / 2,   z + width / 2,          //1
+      x + length / 2,   y - length / 2,   z - width / 2,          //5
+      x + length / 2,   y + height / 2,   z - width / 2,          //6
+      x + length / 2,   y - length / 2,   z + width / 2,          //1
+      x + length / 2,   y + height / 2,   z - width / 2,          //6
+      x + length / 2,   y + height / 2,   z + width / 2,          //2
+
+      // left face
+      x - length / 2,   y - length / 2,   z - width / 2,          //4
+      x - length / 2,   y - length / 2,   z + width / 2,          //0
+      x - length / 2,   y + height / 2,   z + width / 2,          //3
+      x - length / 2,   y - length / 2,   z - width / 2,          //4
+      x - length / 2,   y + height / 2,   z + width / 2,          //3
+      x - length / 2,   y + height / 2,   z - width / 2,          //7
+
+      // top face
+      x - length / 2,   y + height / 2,   z + width / 2,          //3
+      x + length / 2,   y + height / 2,   z + width / 2,          //2
+      x + length / 2,   y + height / 2,   z - width / 2,          //6
+      x - length / 2,   y + height / 2,   z + width / 2,          //3
+      x + length / 2,   y + height / 2,   z - width / 2,          //6
+      x - length / 2,   y + height / 2,   z - width / 2,          //7
+
+      // bottom face
+      x - length / 2,   y - length / 2,   z - width / 2,          //4
+      x + length / 2,   y - length / 2,   z - width / 2,          //5
+      x + length / 2,   y - length / 2,   z + width / 2,          //1
+      x - length / 2,   y - length / 2,   z - width / 2,          //4
+      x + length / 2,   y - length / 2,   z + width / 2,          //1
+      x - length / 2,   y - length / 2,   z + width / 2,          //0
+
+      // back face
+      x - length / 2,   y + height / 2,   z - width / 2,          //7
+      x + length / 2,   y + height / 2,   z - width / 2,          //6
+      x + length / 2,   y - length / 2,   z - width / 2,          //5
+      x - length / 2,   y + height / 2,   z - width / 2,          //7
+      x + length / 2,   y - length / 2,   z - width / 2,          //5
+      x - length / 2,   y - length / 2,   z - width / 2,          //4
+    ];
+    return positions;
+  }
+
+  function setCuboidNormals(){
+    // setting indices (the order to draw triangles)
+    // Need to ensure all triangles are being drawn counter-clockwise
+    // relative to their face to avoid webGL from automatically culling them
+    var normals = [
+      // front face
+      0, 0, 1,
+      0, 0, 1,
+      0, 0, 1,
+      0, 0, 1,
+      0, 0, 1,
+      0, 0, 1,
+
+      // right face
+      1, 0, 0,
+      1, 0, 0,
+      1, 0, 0,
+      1, 0, 0,
+      1, 0, 0,
+      1, 0, 0,
+
+      // left face
+      -1, 0, 0,
+      -1, 0, 0,
+      -1, 0, 0,
+      -1, 0, 0,
+      -1, 0, 0,
+      -1, 0, 0,
+
+      // top face
+      0, 1, 0,
+      0, 1, 0,
+      0, 1, 0,
+      0, 1, 0,
+      0, 1, 0,
+      0, 1, 0,
+
+      // bottom face
+      0, -1, 0,
+      0, -1, 0,
+      0, -1, 0,
+      0, -1, 0,
+      0, -1, 0,
+      0, -1, 0,
+
+      // back face
+      0, 0, -1,
+      0, 0, -1,
+      0, 0, -1,
+      0, 0, -1,
+      0, 0, -1,
+      0, 0, -1,
+
+    ];
+    return normals;
+  }
+
+  function setNormals(gl) {
+    var normals = new Float32Array([
+            // left column front
+            0, 0, 1,
+            0, 0, 1,
+            0, 0, 1,
+            0, 0, 1,
+            0, 0, 1,
+            0, 0, 1,
+   
+            // top rung front
+            0, 0, 1,
+            0, 0, 1,
+            0, 0, 1,
+            0, 0, 1,
+            0, 0, 1,
+            0, 0, 1,
+   
+            // middle rung front
+            0, 0, 1,
+            0, 0, 1,
+            0, 0, 1,
+            0, 0, 1,
+            0, 0, 1,
+            0, 0, 1,
+   
+            // left column back
+            0, 0, -1,
+            0, 0, -1,
+            0, 0, -1,
+            0, 0, -1,
+            0, 0, -1,
+            0, 0, -1,
+   
+            // top rung back
+            0, 0, -1,
+            0, 0, -1,
+            0, 0, -1,
+            0, 0, -1,
+            0, 0, -1,
+            0, 0, -1,
+   
+            // middle rung back
+            0, 0, -1,
+            0, 0, -1,
+            0, 0, -1,
+            0, 0, -1,
+            0, 0, -1,
+            0, 0, -1,
+   
+            // top
+            0, 1, 0,
+            0, 1, 0,
+            0, 1, 0,
+            0, 1, 0,
+            0, 1, 0,
+            0, 1, 0,
+   
+            // top rung right
+            1, 0, 0,
+            1, 0, 0,
+            1, 0, 0,
+            1, 0, 0,
+            1, 0, 0,
+            1, 0, 0,
+   
+            // under top rung
+            0, -1, 0,
+            0, -1, 0,
+            0, -1, 0,
+            0, -1, 0,
+            0, -1, 0,
+            0, -1, 0,
+   
+            // between top rung and middle
+            1, 0, 0,
+            1, 0, 0,
+            1, 0, 0,
+            1, 0, 0,
+            1, 0, 0,
+            1, 0, 0,
+   
+            // top of middle rung
+            0, 1, 0,
+            0, 1, 0,
+            0, 1, 0,
+            0, 1, 0,
+            0, 1, 0,
+            0, 1, 0,
+   
+            // right of middle rung
+            1, 0, 0,
+            1, 0, 0,
+            1, 0, 0,
+            1, 0, 0,
+            1, 0, 0,
+            1, 0, 0,
+   
+            // bottom of middle rung.
+            0, -1, 0,
+            0, -1, 0,
+            0, -1, 0,
+            0, -1, 0,
+            0, -1, 0,
+            0, -1, 0,
+   
+            // right of bottom
+            1, 0, 0,
+            1, 0, 0,
+            1, 0, 0,
+            1, 0, 0,
+            1, 0, 0,
+            1, 0, 0,
+   
+            // bottom
+            0, -1, 0,
+            0, -1, 0,
+            0, -1, 0,
+            0, -1, 0,
+            0, -1, 0,
+            0, -1, 0,
+   
+            // left side
+            -1, 0, 0,
+            -1, 0, 0,
+            -1, 0, 0,
+            -1, 0, 0,
+            -1, 0, 0,
+            -1, 0, 0]);
+    gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW);
   }
   
   
